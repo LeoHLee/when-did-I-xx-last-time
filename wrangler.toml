@@ -1,0 +1,8 @@
+name = "last-time-tracker"
+main = "worker.py"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "last_time_db"
+database_id = "f53d9ee4-b3aa-4238-8fbc-332910a2fb92"

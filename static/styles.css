@@ -54,6 +54,11 @@ li {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  cursor: pointer;
+}
+
+.item-info:hover {
+  opacity: 0.85;
 }
 
 .item-time {

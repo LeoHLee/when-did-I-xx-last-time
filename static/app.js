@@ -32,16 +32,15 @@ async function loadItems() {
     listEl.innerHTML = '';
     items.forEach(i => {
       const li = document.createElement('li');
-      li.innerHTML = `
-        <div class="item-info">
-          <strong>${i.name}</strong>
-          <span class="item-time">${i.last_time ? format(i.last_time) : '—'}</span>
+        li.innerHTML = `
+        <div class="item-info" data-id="${i.id}">
+            <strong>${i.name}</strong>
+            <span class="item-time">${i.last_time ? format(i.last_time) : '—'}</span>
         </div>
         <div>
-          <button class="secondary" data-id="${i.id}" data-action="history">历史</button>
-          <button class="primary" data-id="${i.id}" data-action="refresh">刷新</button>
+            <button class="secondary" data-id="${i.id}" data-action="history">历史</button>
         </div>
-      `;
+        `;
       listEl.appendChild(li);
     });
 
@@ -54,19 +53,9 @@ async function loadItems() {
 }
 
 listEl.addEventListener('click', async e => {
-  const btn = e.target;
-  if (!btn.dataset.action) return;
-
-  const id = btn.dataset.id;
-
-  if (btn.dataset.action === 'refresh') {
-    if (!confirm('确定刷新为当前时间？')) return;
-    btn.classList.add('loading');
-    await fetch(`/api/items/${id}/refresh`, { method: 'POST' });
-    loadItems();
-  }
-
-  if (btn.dataset.action === 'history') {
+  const historyBtn = e.target.closest('button[data-action="history"]');
+  if (historyBtn) {
+    const id = historyBtn.dataset.id;
     openModal();
     modalSkeleton.hidden = false;
     historyList.hidden = true;
@@ -84,6 +73,17 @@ listEl.addEventListener('click', async e => {
 
     modalSkeleton.hidden = true;
     historyList.hidden = false;
+    return;
+  }
+
+  const itemInfo = e.target.closest('.item-info');
+  if (itemInfo) {
+    const id = itemInfo.dataset.id;
+    if (!confirm('确定刷新为当前时间？')) return;
+
+    itemInfo.classList.add('loading');
+    await fetch(`/api/items/${id}/refresh`, { method: 'POST' });
+    loadItems();
   }
 });
 

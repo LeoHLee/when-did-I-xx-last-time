@@ -4,7 +4,7 @@ from workers import WorkerEntrypoint, Response
 
 class Default(WorkerEntrypoint):
 
-    async def fetch(self, request):
+    async def on_fetch(self, request):
         url = request.url
         method = request.method
 

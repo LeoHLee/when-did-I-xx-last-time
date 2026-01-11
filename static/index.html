@@ -3,188 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Last Time Tracker</title>
-  <style>
-    :root {
-      --bg: #f5f7fb;
-      --card: #ffffff;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --primary: #2563eb;
-      --border: #e5e7eb;
-    }
-
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-    }
-
-    .container {
-      max-width: 720px;
-      margin: 40px auto;
-      padding: 0 16px;
-    }
-
-    .card {
-      background: var(--card);
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-      padding: 24px;
-      position: relative;
-    }
-
-    h1 {
-      margin: 0 0 16px;
-      font-size: 24px;
-    }
-
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    li {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    li:last-child {
-      border-bottom: none;
-    }
-
-    .item-info {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .item-name {
-      font-weight: 600;
-    }
-
-    .item-time {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .actions button {
-      margin-left: 8px;
-    }
-
-    button {
-      border: none;
-      background: var(--primary);
-      color: #fff;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-
-    button.secondary {
-      background: #e5e7eb;
-      color: var(--text);
-    }
-
-    .add {
-      display: flex;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    input {
-      flex: 1;
-      padding: 8px 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      font-size: 14px;
-    }
-
-    /* ---------- Spinner ---------- */
-
-    .spinner {
-      width: 36px;
-      height: 36px;
-      border: 4px solid var(--border);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .center {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 32px 0;
-    }
-
-    /* ---------- Modal ---------- */
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .modal {
-      background: white;
-      width: 90%;
-      max-width: 420px;
-      border-radius: 12px;
-      padding: 20px;
-      max-height: 70vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
-    .modal-header h2 {
-      font-size: 18px;
-      margin: 0;
-    }
-
-    .close {
-      cursor: pointer;
-      font-size: 20px;
-      color: var(--muted);
-    }
-
-    .history-list {
-      overflow-y: auto;
-      font-size: 14px;
-    }
-
-    .history-item {
-      padding: 8px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .history-item:last-child {
-      border-bottom: none;
-    }
-  </style>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 
 <body>
@@ -192,126 +11,40 @@
     <div class="card">
       <h1>事项记录</h1>
 
-      <div id="pageLoading" class="center">
-        <div class="spinner"></div>
+      <!-- Skeleton -->
+      <div id="skeleton">
+        <div class="skeleton-item"></div>
+        <div class="skeleton-item"></div>
+        <div class="skeleton-item"></div>
       </div>
 
-      <ul id="list" style="display:none;"></ul>
+      <ul id="list" hidden></ul>
 
       <div class="add">
         <input id="newItem" placeholder="新事项名称" />
-        <button onclick="addItem()">添加</button>
+        <button id="addBtn">添加</button>
       </div>
+
+      <div id="error" class="error" hidden></div>
     </div>
   </div>
 
-  <!-- Modal -->
-  <div id="modal" class="modal-backdrop" onclick="closeModal(event)">
+  <!-- History Modal -->
+  <div id="modal" class="modal-backdrop" hidden>
     <div class="modal">
       <div class="modal-header">
         <h2>历史记录</h2>
-        <span class="close" onclick="hideModal()">×</span>
+        <button class="close">×</button>
       </div>
 
-      <div id="historyLoading" class="center">
+      <div id="modalSkeleton" class="center">
         <div class="spinner"></div>
       </div>
 
-      <div id="historyList" class="history-list" style="display:none;"></div>
+      <div id="historyList" class="history-list" hidden></div>
     </div>
   </div>
 
-  <script>
-    function formatTime(sec) {
-      return new Date(sec * 1000).toLocaleString();
-    }
-
-    async function load() {
-      document.getElementById('pageLoading').style.display = 'flex';
-      document.getElementById('list').style.display = 'none';
-
-      const res = await fetch('/api/items');
-      const items = await res.json();
-
-      const ul = document.getElementById('list');
-      ul.innerHTML = '';
-
-      items.forEach(i => {
-        const li = document.createElement('li');
-        li.innerHTML = `
-          <div class="item-info">
-            <span class="item-name">${i.name}</span>
-            <span class="item-time">${i.last_time ? formatTime(i.last_time) : '—'}</span>
-          </div>
-          <div class="actions">
-            <button class="secondary" onclick="history(${i.id})">历史</button>
-            <button onclick="refresh(${i.id})">刷新</button>
-          </div>
-        `;
-        ul.appendChild(li);
-      });
-
-      document.getElementById('pageLoading').style.display = 'none';
-      ul.style.display = 'block';
-    }
-
-    async function refresh(id) {
-      if (!confirm('确定刷新为当前时间？')) return;
-      await fetch(`/api/items/${id}/refresh`, { method: 'POST' });
-      load();
-    }
-
-    async function addItem() {
-      const input = document.getElementById('newItem');
-      const name = input.value.trim();
-      if (!name) return;
-
-      await fetch('/api/items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
-      });
-
-      input.value = '';
-      load();
-    }
-
-    async function history(id) {
-      showModal();
-
-      document.getElementById('historyLoading').style.display = 'flex';
-      document.getElementById('historyList').style.display = 'none';
-
-      const res = await fetch(`/api/items/${id}/history`);
-      const times = await res.json();
-
-      const list = document.getElementById('historyList');
-      list.innerHTML = '';
-
-      times.forEach(t => {
-        const div = document.createElement('div');
-        div.className = 'history-item';
-        div.textContent = formatTime(t);
-        list.appendChild(div);
-      });
-
-      document.getElementById('historyLoading').style.display = 'none';
-      list.style.display = 'block';
-    }
-
-    function showModal() {
-      document.getElementById('modal').style.display = 'flex';
-    }
-
-    function hideModal() {
-      document.getElementById('modal').style.display = 'none';
-    }
-
-    function closeModal(e) {
-      if (e.target.id === 'modal') hideModal();
-    }
-
-    load();
-  </script>
+  <script src="/app.js"></script>
 </body>
 </html>

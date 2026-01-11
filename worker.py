@@ -23,7 +23,7 @@ class Default(WorkerEntrypoint):
             return await self.get_history(item_id)
 
         # Frontend
-        return Response(self.index_html(), headers={"Content-Type": "text/html"})
+        return await self.env.ASSETS.fetch(request)
 
     async def list_items(self):
         result = await self.env.DB.prepare(
@@ -69,6 +69,3 @@ class Default(WorkerEntrypoint):
         ).bind(item_id).all()
 
         return Response(json.dumps(result.results))
-
-    def index_html(self):
-        return open("static/index.html").read()

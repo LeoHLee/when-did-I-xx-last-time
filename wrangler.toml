@@ -1,0 +1,27 @@
+name = "last-time-tracker"
+main = "worker.py"
+compatibility_date = "2025-01-01"
+
+compatibility_flags = ["python_workers"]
+
+assets = { directory = "./static" }
+
+[[d1_databases]]
+binding = "DB"
+database_name = "last_time_db"
+database_id = "f53d9ee4-b3aa-4238-8fbc-332910a2fb92"
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1

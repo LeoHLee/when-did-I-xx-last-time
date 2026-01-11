@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>事项管理系统</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>事项管理系统</h1>
+      <p>记录每一次「上次是什么时候」</p>
+    </header>
+
+    <form class="add-form" id="addForm">
+      <input type="text" id="newItemName" placeholder="输入新事项名称…" autocomplete="off">
+      <button type="submit" class="btn btn-primary">添加</button>
+    </form>
+
+    <div class="items-list" id="itemsList"></div>
+  </div>
+
+  <div class="modal" id="timeModal">
+    <div class="modal-content">
+      <h2>记录发生时间</h2>
+      <div class="form-group">
+        <label for="timeInput">选择日期和时间</label>
+        <input type="datetime-local" id="timeInput">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="cancelTimeBtn">取消</button>
+        <button type="button" class="btn btn-primary" id="confirmTimeBtn">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="historyModal">
+    <div class="history-content">
+      <div class="history-header">
+        <h2 id="historyTitle">历史记录</h2>
+        <button class="close-btn" id="closeHistoryBtn">&times;</button>
+      </div>
+      <ul class="history-list" id="historyList"></ul>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ================================================================
+     *  API 封装 —— 与 README Endpoints 完全对齐
+     * ================================================================ */
+
+    const API = {
+      /** GET /api/items */
+      async listItems() {
+        const res = await fetch("/api/items");
+        if (!res.ok) throw new Error("Failed: " + res.status);
+        return res.json();
+      },
+
+      /** POST /api/items */
+      async addItem(name) {
+        const res = await fetch("/api/items", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Failed: " + res.status);
+        }
+        return res.json();
+      },
+
+      /** POST /api/items/{id}/refresh  可选 {time} */
+      async refreshItem(id, time) {
+        const body = time !== undefined ? { time } : {};
+        const res = await fetch("/api/items/" + id + "/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("Failed: " + res.status);
+        return res.json();
+      },
+
+      /** GET /api/items/{id}/history */
+      async getHistory(id) {
+        const res = await fetch("/api/items/" + id + "/history");
+        if (!res.ok) throw new Error("Failed: " + res.status);
+        return res.json();
+      },
+    };
+
+    /* ================================================================
+     *  DOM 引用
+     * ================================================================ */
+
+    const $ = (id) => document.getElementById(id);
+
+    const $itemsList      = $("itemsList");
+    const $addForm        = $("addForm");
+    const $newItemName    = $("newItemName");
+    const $timeModal      = $("timeModal");
+    const $timeInput      = $("timeInput");
+    const $confirmTimeBtn = $("confirmTimeBtn");
+    const $cancelTimeBtn  = $("cancelTimeBtn");
+    const $historyModal    = $("historyModal");
+    const $historyTitle    = $("historyTitle");
+    const $historyList     = $("historyList");
+    const $pagination      = $("pagination");
+    const $closeHistoryBtn = $("closeHistoryBtn");
+
+    /* ================================================================
+     *  状态
+     * ================================================================ */
+
+    let currentItemId   = null;
+    let currentItemName = "";
+    let historyPage     = 1;
+    const PAGE_SIZE     = 5;
+
+    /* ================================================================
+     *  工具函数
+     * ================================================================ */
+
+    function formatTime(ts) {
+      if (ts == null) return "暂无记录";
+      return new Date(ts * 1000).toLocaleString("zh-CN");
+    }
+
+    function showModal(el)  { el.classList.add("open"); }
+    function hideModal(el)  { el.classList.remove("open"); }
+
+    function showStatus(html, isError) {
+      $itemsList.innerHTML =
+        '<div class="status' + (isError ? " error" : "") + '">' + html + "</div>";
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    /* ================================================================
+     *  事项列表
+     * ================================================================ */
+
+    async function loadItems() {
+      showStatus('<div class="spinner"></div><div>加载中…</div>');
+      try {
+        const items = await API.listItems();
+        if (items.length === 0) {
+          showStatus("暂无事项，快来添加第一个吧 ✨");
+          return;
+        }
+        $itemsList.innerHTML = "";
+        items.forEach(renderItemCard);
+      } catch (e) {
+        showStatus(e.message, true);
+      }
+    }
+
+    function renderItemCard(item) {
+      const card = document.createElement("div");
+      card.className = "item-card";
+      card.innerHTML =
+        '<div class="item-info">' +
+          '<div class="item-name">' + escapeHtml(item.name) + "</div>" +
+          '<div class="item-time">' + formatTime(item.last_time) + "</div>" +
+        "</div>" +
+        '<div class="item-actions">' +
+          '<button class="btn btn-sm btn-outline btn-history">历史</button>' +
+          '<button class="btn btn-sm btn-success btn-refresh">刷新</button>' +
+        "</div>";
+
+      // 点击卡片主体 → 时间选择器
+      card.querySelector(".item-info").addEventListener("click", () => {
+        currentItemId = item.id;
+        openTimeModal();
+      });
+
+      // 历史按钮
+      card.querySelector(".btn-history").addEventListener("click", (e) => {
+        e.stopPropagation();
+        openHistoryModal(item.id, item.name);
+      });
+
+      // 刷新按钮 → 服务器当前时间
+      card.querySelector(".btn-refresh").addEventListener("click", (e) => {
+        e.stopPropagation();
+        quickRefresh(item.id);
+      });
+
+      $itemsList.appendChild(card);
+    }
+
+    /* ================================================================
+     *  新增事项
+     * ================================================================ */
+
+    $addForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = $newItemName.value.trim();
+      if (!name) return;
+
+      $addForm.querySelector("button").disabled = true;
+      try {
+        await API.addItem(name);
+        $newItemName.value = "";
+        await loadItems();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        $addForm.querySelector("button").disabled = false;
+      }
+    });
+
+    /* ================================================================
+     *  快速刷新 —— 不传 time，服务器用当前时间
+     * ================================================================ */
+
+    async function quickRefresh(id) {
+      try {
+        await API.refreshItem(id);
+        await loadItems();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    /* ================================================================
+     *  时间选择器 —— 传 {time} 指定发生时间
+     * ================================================================ */
+
+    function openTimeModal() {
+      const now = new Date();
+      $timeInput.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+      showModal($timeModal);
+    }
+
+    $confirmTimeBtn.addEventListener("click", async () => {
+      const val = $timeInput.value;
+      if (!val || !currentItemId) return;
+
+      const timestamp = Math.floor(new Date(val).getTime() / 1000);
+      try {
+        await API.refreshItem(currentItemId, timestamp);
+        hideModal($timeModal);
+        currentItemId = null;
+        await loadItems();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+
+    $cancelTimeBtn.addEventListener("click", () => hideModal($timeModal));
+    $timeModal.addEventListener("click", (e) => {
+      if (e.target === $timeModal) hideModal($timeModal);
+    });
+
+    /* ================================================================
+     *  历史记录 —— 前端分页，每页 PAGE_SIZE 条
+     * ================================================================ */
+
+    async function openHistoryModal(id, name) {
+      currentItemId   = id;
+      currentItemName = name;
+      historyPage     = 1;
+
+      try {
+        const history = await API.getHistory(id);
+        $historyTitle.textContent = escapeHtml(name) + " · 历史记录";
+        renderHistoryPage(history, historyPage);
+        showModal($historyModal);
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function renderHistoryPage(history, page) {
+      const start = (page - 1) * PAGE_SIZE;
+      const pageItems = history.slice(start, start + PAGE_SIZE);
+
+      $historyList.innerHTML = "";
+      if (pageItems.length === 0) {
+        $historyList.innerHTML =
+          '<li style="text-align:center;color:#999">暂无记录</li>';
+        $pagination.innerHTML = "";
+        return;
+      }
+
+      pageItems.forEach((ts) => {
+        const li = document.createElement("li");
+        li.textContent = formatTime(ts);
+        $historyList.appendChild(li);
+      });
+
+      renderPagination(history.length, page);
+    }
+
+    function renderPagination(total, page) {
+      const totalPages = Math.ceil(total / PAGE_SIZE);
+      $pagination.innerHTML = "";
+      if (totalPages <= 1) return;
+
+      const prev = mkPageBtn("\u2039 上一页", page > 1, () => goPage(page - 1));
+      $pagination.appendChild(prev);
+
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = mkPageBtn(String(i), true, () => goPage(i));
+        if (i === page) btn.classList.add("active");
+        $pagination.appendChild(btn);
+      }
+
+      const next = mkPageBtn("下一页 \u203a", page < totalPages, () => goPage(page + 1));
+      $pagination.appendChild(next);
+    }
+
+    function mkPageBtn(text, enabled, onClick) {
+      const btn = document.createElement("button");
+      btn.className = "page-btn";
+      btn.textContent = text;
+      btn.disabled = !enabled;
+      if (enabled) btn.addEventListener("click", onClick);
+      return btn;
+    }
+
+    async function goPage(page) {
+      historyPage = page;
+      try {
+        const history = await API.getHistory(currentItemId);
+        renderHistoryPage(history, historyPage);
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    $closeHistoryBtn.addEventListener("click", () => hideModal($historyModal));
+    $historyModal.addEventListener("click", (e) => {
+      if (e.target === $historyModal) hideModal($historyModal);
+    });
+
+    /* ================================================================
+     *  启动
+     * ================================================================ */
+
+    loadItems();
+  </script>
+</body>
+</html>

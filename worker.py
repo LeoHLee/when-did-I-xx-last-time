@@ -33,22 +33,29 @@ class Default(WorkerEntrypoint):
 
     async def add_item(self, request):
         data = await request.json()
-        name = data["name"]
+        name = data.get("name")
+
+        if not name:
+            return Response("Missing name", status=400)
+
         now = int(time.time())
 
         await self.env.DB.prepare(
             "INSERT INTO items (name, last_time) VALUES (?, ?)"
         ).bind(name, now).run()
 
-        item_id = (await self.env.DB.prepare(
+        row = await self.env.DB.prepare(
             "SELECT id FROM items WHERE name = ?"
-        ).bind(name).first())["id"]
+        ).bind(name).first()
+
+        item_id = row.id
 
         await self.env.DB.prepare(
             "INSERT INTO item_history (item_id, time) VALUES (?, ?)"
         ).bind(item_id, now).run()
 
         return Response("OK")
+
 
     async def refresh_item(self, item_id):
         now = int(time.time())

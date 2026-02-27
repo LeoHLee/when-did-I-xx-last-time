@@ -3,6 +3,9 @@ const skeleton = document.getElementById('skeleton');
 const errorEl = document.getElementById('error');
 
 const modal = document.getElementById('modal');
+const timeModal = document.getElementById('timeModal');
+const modalTimePicker = document.getElementById('modalTimePicker');
+const confirmTimeBtn = document.getElementById('confirmTimeBtn');
 const modalSkeleton = document.getElementById('modalSkeleton');
 const historyList = document.getElementById('historyList');
 
@@ -81,41 +84,54 @@ listEl.addEventListener('click', async e => {
   const itemInfo = e.target.closest('.item-info');
   if (itemInfo) {
     const id = itemInfo.dataset.id;
-    // 创建时间选择器
-    let picker = document.getElementById('timePicker');
-    if (!picker) {
-      picker = document.createElement('input');
-      picker.type = 'datetime-local';
-      picker.id = 'timePicker';
-      picker.style.marginLeft = '8px';
-      itemInfo.appendChild(picker);
-    }
-    // 设置默认值为当前时间，精确到分钟
-    const now = new Date();
-    const pad = n => n.toString().padStart(2, '0');
-    const yyyy = now.getFullYear();
-    const MM = pad(now.getMonth() + 1);
-    const dd = pad(now.getDate());
-    const hh = pad(now.getHours());
-    const mm = pad(now.getMinutes());
-    picker.value = `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
-
-    picker.onchange = async () => {
-      const dt = picker.value;
-      if (!dt) return;
-      itemInfo.classList.add('loading');
-      // 转换为秒
-      const selected = new Date(dt.replace('T', ' ')).getTime() / 1000;
-      await fetch(`/api/items/${id}/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ time: selected })
-      });
-      picker.remove();
-      loadItems();
-    };
-    picker.focus();
+    // 弹出时间选择弹窗
+    openTimeModal(id);
   }
+// 时间选择弹窗逻辑
+let currentRefreshId = null;
+function openTimeModal(id) {
+  currentRefreshId = id;
+  // 设置默认值为当前时间，精确到分钟
+  const now = new Date();
+  const pad = n => n.toString().padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const MM = pad(now.getMonth() + 1);
+  const dd = pad(now.getDate());
+  const hh = pad(now.getHours());
+  const mm = pad(now.getMinutes());
+  modalTimePicker.value = `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
+  timeModal.hidden = false;
+  timeModal.classList.add('show');
+}
+
+function closeTimeModal() {
+  timeModal.classList.remove('show');
+  timeModal.hidden = true;
+  currentRefreshId = null;
+}
+
+confirmTimeBtn.onclick = async () => {
+  if (!currentRefreshId) return;
+  const dt = modalTimePicker.value;
+  if (!dt) return;
+  confirmTimeBtn.classList.add('loading');
+  // 转换为秒
+  const selected = new Date(dt.replace('T', ' ')).getTime() / 1000;
+  await fetch(`/api/items/${currentRefreshId}/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ time: selected })
+  });
+  confirmTimeBtn.classList.remove('loading');
+  closeTimeModal();
+  loadItems();
+};
+
+timeModal.onclick = e => {
+  if (e.target === timeModal || e.target.classList.contains('close')) {
+    closeTimeModal();
+  }
+};
 });
 
 document.getElementById('addBtn').onclick = async () => {

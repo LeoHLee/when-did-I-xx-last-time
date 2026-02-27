@@ -79,11 +79,40 @@ listEl.addEventListener('click', async e => {
   const itemInfo = e.target.closest('.item-info');
   if (itemInfo) {
     const id = itemInfo.dataset.id;
-    if (!confirm('确定刷新为当前时间？')) return;
+    // 创建时间选择器
+    let picker = document.getElementById('timePicker');
+    if (!picker) {
+      picker = document.createElement('input');
+      picker.type = 'datetime-local';
+      picker.id = 'timePicker';
+      picker.style.marginLeft = '8px';
+      itemInfo.appendChild(picker);
+    }
+    // 设置默认值为当前时间，精确到分钟
+    const now = new Date();
+    const pad = n => n.toString().padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const MM = pad(now.getMonth() + 1);
+    const dd = pad(now.getDate());
+    const hh = pad(now.getHours());
+    const mm = pad(now.getMinutes());
+    picker.value = `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
 
-    itemInfo.classList.add('loading');
-    await fetch(`/api/items/${id}/refresh`, { method: 'POST' });
-    loadItems();
+    picker.onchange = async () => {
+      const dt = picker.value;
+      if (!dt) return;
+      itemInfo.classList.add('loading');
+      // 转换为秒
+      const selected = new Date(dt.replace('T', ' ')).getTime() / 1000;
+      await fetch(`/api/items/${id}/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time: selected })
+      });
+      picker.remove();
+      loadItems();
+    };
+    picker.focus();
   }
 });
 

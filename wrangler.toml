@@ -1,4 +1,4 @@
-name = "last-time-tracker"
+name = "when-did-i-xx-last-time"
 main = "worker.py"
 compatibility_date = "2025-01-01"
 

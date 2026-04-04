@@ -1,50 +1,682 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>Last Time Tracker</title>
-  <link rel="stylesheet" href="/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>事项管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .add-item-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .add-item-form input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+
+        .add-item-form button {
+            padding: 10px 15px;
+            background: #2575fc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .add-item-form button:hover {
+            background: #1c6ae4;
+        }
+
+        .items-list {
+            padding: 20px;
+        }
+
+        .item-card {
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .item-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .item-info {
+            flex-grow: 1;
+        }
+
+        .item-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .item-time {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-history {
+            padding: 8px 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-history:hover {
+            background: #45a049;
+        }
+
+        .btn-refresh {
+            padding: 8px 12px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-refresh:hover {
+            background: #0b7dda;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .modal h2 {
+            margin-bottom: 15px;
+        }
+
+        .time-picker {
+            margin: 15px 0;
+        }
+
+        .time-picker label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .time-picker input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .modal-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .confirm-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .cancel-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .history-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .history-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .history-list {
+            list-style-type: none;
+        }
+
+        .history-list li {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+            gap: 5px;
+        }
+
+        .page-btn {
+            padding: 8px 12px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .page-btn:disabled {
+            background: #bbb;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
 </head>
-
 <body>
-  <div class="container">
-    <div class="card">
-      <h1>事项记录</h1>
+    <div class="container">
+        <header>
+            <h1>事项管理系统</h1>
+            <p>管理您的事项及其最新时间戳</p>
+        </header>
 
-      <!-- Skeleton -->
-      <div id="skeleton">
-        <div class="skeleton-item"></div>
-        <div class="skeleton-item"></div>
-        <div class="skeleton-item"></div>
-      </div>
+        <div class="controls">
+            <div class="add-item-form">
+                <input type="text" id="newItemName" placeholder="输入新事项名称">
+                <button id="addItemBtn">添加事项</button>
+            </div>
+        </div>
 
-      <ul id="list" hidden></ul>
-
-      <div class="add">
-        <input id="newItem" placeholder="新事项名称" />
-        <button id="addBtn">添加</button>
-      </div>
-
-      <div id="error" class="error" hidden></div>
+        <div class="items-list" id="itemsList">
+            <!-- Items will be loaded here -->
+        </div>
     </div>
-  </div>
 
-  <!-- History Modal -->
-  <div id="modal" class="modal-backdrop" hidden>
-    <div class="modal">
-      <div class="modal-header">
-        <h2>历史记录</h2>
-        <button class="close">×</button>
-      </div>
-
-      <div id="modalSkeleton" class="center">
-        <div class="spinner"></div>
-      </div>
-
-      <div id="historyList" class="history-list" hidden></div>
+    <!-- 时间选择模态框 -->
+    <div id="timeModal" class="modal">
+        <div class="modal-content">
+            <h2>选择时间</h2>
+            <div class="time-picker">
+                <label for="timeInput">选择日期和时间：</label>
+                <input type="datetime-local" id="timeInput">
+            </div>
+            <div class="modal-buttons">
+                <button class="confirm-btn" id="confirmTimeBtn">确认</button>
+                <button class="cancel-btn" id="cancelTimeBtn">取消</button>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <script src="/app.js"></script>
+    <!-- 历史记录模态框 -->
+    <div id="historyModal" class="modal">
+        <div class="history-content">
+            <div class="history-header">
+                <h2 id="historyTitle">历史记录</h2>
+                <span id="closeHistoryBtn" style="cursor: pointer; font-size: 1.5em;">&times;</span>
+            </div>
+            <ul class="history-list" id="historyList">
+                <!-- History items will be loaded here -->
+            </ul>
+            <div class="pagination" id="pagination">
+                <!-- Pagination buttons will be added here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API基础路径 - 在实际部署时替换为真实的API端点
+        const API_BASE = '/api'; // 假设API在同域下的/api路径
+
+        // 全局变量
+        let selectedItemId = null;
+        let selectedItemName = ''; // 添加存储事项名称
+        let currentHistoryPage = 1;
+        const HISTORY_PAGE_SIZE = 5;
+
+        // DOM元素
+        const itemsListEl = document.getElementById('itemsList');
+        const newItemNameEl = document.getElementById('newItemName');
+        const addItemBtn = document.getElementById('addItemBtn');
+        const timeModal = document.getElementById('timeModal');
+        const timeInput = document.getElementById('timeInput');
+        const confirmTimeBtn = document.getElementById('confirmTimeBtn');
+        const cancelTimeBtn = document.getElementById('cancelTimeBtn');
+        const historyModal = document.getElementById('historyModal');
+        const historyListEl = document.getElementById('historyList');
+        const paginationEl = document.getElementById('pagination');
+        const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+        const historyTitleEl = document.getElementById('historyTitle'); // 新增标题元素
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadItems();
+            
+            // 绑定事件监听器
+            addItemBtn.addEventListener('click', handleAddItem);
+            confirmTimeBtn.addEventListener('click', handleConfirmTime);
+            cancelTimeBtn.addEventListener('click', () => closeModal(timeModal));
+            closeHistoryBtn.addEventListener('click', () => closeModal(historyModal));
+        });
+
+        // 加载事项列表
+        async function loadItems() {
+            try {
+                itemsListEl.innerHTML = '<div class="loading">加载中...</div>';
+                
+                const response = await fetch(`${API_BASE}/items`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const items = await response.json();
+                
+                renderItems(items);
+            } catch (error) {
+                console.error('加载事项失败:', error);
+                itemsListEl.innerHTML = `<div class="error">加载事项失败: ${error.message}</div>`;
+            }
+        }
+
+        // 渲染事项列表
+        function renderItems(items) {
+            if (items.length === 0) {
+                itemsListEl.innerHTML = '<div class="loading">暂无事项</div>';
+                return;
+            }
+
+            itemsListEl.innerHTML = '';
+            
+            items.forEach(item => {
+                const itemCard = document.createElement('div');
+                itemCard.className = 'item-card';
+                itemCard.innerHTML = `
+                    <div class="item-info">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-time">最后更新: ${formatTimestamp(item.last_time)}</div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn-history" data-id="${item.id}">查看历史</button>
+                        <button class="btn-refresh" data-id="${item.id}">刷新</button>
+                    </div>
+                `;
+                
+                // 绑定事件：点击卡片主体区域打开时间选择器
+                itemCard.querySelector('.item-info').addEventListener('click', () => {
+                    selectedItemId = item.id;
+                    openTimeModal();
+                });
+                
+                // 绑定事件：查看历史记录
+                itemCard.querySelector('.btn-history').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showHistory(item.id, item.name);
+                });
+                
+                // 绑定事件：刷新时间
+                itemCard.querySelector('.btn-refresh').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    refreshItem(item.id);
+                });
+                
+                itemsListEl.appendChild(itemCard);
+            });
+        }
+
+        // 添加新事项
+        async function handleAddItem() {
+            const name = newItemNameEl.value.trim();
+            if (!name) {
+                alert('请输入事项名称');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/items`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '添加事项失败');
+                }
+                
+                const newItem = await response.json();
+                
+                // 清空输入框
+                newItemNameEl.value = '';
+                
+                // 重新加载事项列表
+                loadItems();
+            } catch (error) {
+                console.error('添加事项失败:', error);
+                alert(`添加事项失败: ${error.message}`);
+            }
+        }
+
+        // 打开时间选择模态框
+        function openTimeModal() {
+            // 设置默认时间为当前时间
+            const now = new Date();
+            const localTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 16);
+            timeInput.value = localTime;
+            
+            timeModal.style.display = 'block';
+        }
+
+        // 关闭模态框
+        function closeModal(modal) {
+            modal.style.display = 'none';
+        }
+
+        // 处理确认时间
+        async function handleConfirmTime() {
+            if (!selectedItemId) return;
+            
+            const selectedTimeStr = timeInput.value;
+            if (!selectedTimeStr) {
+                alert('请选择时间');
+                return;
+            }
+            
+            // 将本地时间转换为时间戳
+            const timestamp = Math.floor(new Date(selectedTimeStr).getTime() / 1000);
+            
+            try {
+                // 发送用户选择的时间，而不是当前时间
+                const response = await fetch(`${API_BASE}/items/${selectedItemId}/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ time: timestamp }) // 使用用户选择的时间戳
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                closeModal(timeModal);
+                selectedItemId = null;
+                
+                // 重新加载事项列表
+                loadItems();
+            } catch (error) {
+                console.error('更新时间失败:', error);
+                alert(`更新时间失败: ${error.message}`);
+            }
+        }
+
+        // 显示历史记录
+        async function showHistory(itemId, itemName) {
+            selectedItemId = itemId;
+            selectedItemName = itemName; // 保存事项名称
+            currentHistoryPage = 1;
+            
+            try {
+                // 获取历史记录总数
+                const historyResponse = await fetch(`${API_BASE}/items/${itemId}/history`);
+                if (!historyResponse.ok) {
+                    throw new Error(`HTTP error! status: ${historyResponse.status}`);
+                }
+                
+                const history = await historyResponse.json();
+                
+                // 更新模态框标题
+                historyTitleEl.textContent = `${itemName} - 历史记录`;
+                
+                renderHistory(history, currentHistoryPage);
+                historyModal.style.display = 'block';
+            } catch (error) {
+                console.error('获取历史记录失败:', error);
+                historyListEl.innerHTML = `<div class="error">获取历史记录失败: ${error.message}</div>`;
+            }
+        }
+
+        // 渲染历史记录
+        function renderHistory(history, page) {
+            const startIndex = (page - 1) * HISTORY_PAGE_SIZE;
+            const endIndex = startIndex + HISTORY_PAGE_SIZE;
+            const pageHistory = history.slice(startIndex, endIndex);
+            
+            historyListEl.innerHTML = '';
+            
+            if (pageHistory.length === 0) {
+                historyListEl.innerHTML = '<li>暂无历史记录</li>';
+                paginationEl.innerHTML = '';
+                return;
+            }
+            
+            pageHistory.forEach(timestamp => {
+                const li = document.createElement('li');
+                li.textContent = formatTimestamp(timestamp);
+                historyListEl.appendChild(li);
+            });
+            
+            // 渲染分页
+            renderPagination(history.length, page);
+        }
+
+        // 渲染分页控件
+        function renderPagination(totalCount, currentPage) {
+            const totalPages = Math.ceil(totalCount / HISTORY_PAGE_SIZE);
+            
+            paginationEl.innerHTML = '';
+            
+            if (totalPages <= 1) return;
+            
+            // 上一页按钮
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'page-btn';
+            prevBtn.textContent = '上一页';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentHistoryPage = currentPage - 1;
+                    // 使用保存的名称
+                    showHistoryWithPage(selectedItemId, selectedItemName, currentHistoryPage);
+                }
+            });
+            paginationEl.appendChild(prevBtn);
+            
+            // 页码按钮
+            for (let i = 1; i <= totalPages; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = 'page-btn';
+                pageBtn.textContent = i;
+                pageBtn.style.backgroundColor = i === currentPage ? '#0b7dda' : '#2196F3';
+                pageBtn.addEventListener('click', () => {
+                    currentHistoryPage = i;
+                    // 使用保存的名称
+                    showHistoryWithPage(selectedItemId, selectedItemName, currentHistoryPage);
+                });
+                paginationEl.appendChild(pageBtn);
+            }
+            
+            // 下一页按钮
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'page-btn';
+            nextBtn.textContent = '下一页';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentHistoryPage = currentPage + 1;
+                    // 使用保存的名称
+                    showHistoryWithPage(selectedItemId, selectedItemName, currentHistoryPage);
+                }
+            });
+            paginationEl.appendChild(nextBtn);
+        }
+
+        // 带页面参数的历史记录显示函数
+        async function showHistoryWithPage(itemId, itemName, page) {
+            try {
+                const historyResponse = await fetch(`${API_BASE}/items/${itemId}/history`);
+                if (!historyResponse.ok) {
+                    throw new Error(`HTTP error! status: ${historyResponse.status}`);
+                }
+                
+                const history = await historyResponse.json();
+                
+                // 更新模态框标题
+                historyTitleEl.textContent = `${itemName} - 历史记录`;
+                
+                renderHistory(history, page);
+                historyModal.style.display = 'block';
+            } catch (error) {
+                console.error('获取历史记录失败:', error);
+                historyListEl.innerHTML = `<div class="error">获取历史记录失败: ${error.message}</div>`;
+            }
+        }
+
+        // 刷新事项时间
+        async function refreshItem(itemId) {
+            if (!confirm('确定要将此事项的时间更新为当前时间吗？')) {
+                return;
+            }
+            
+            try {
+                // 刷新操作使用当前时间
+                const response = await fetch(`${API_BASE}/items/${itemId}/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({}) // 不传递特定时间，使用服务器当前时间
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                // 重新加载事项列表
+                loadItems();
+            } catch (error) {
+                console.error('刷新时间失败:', error);
+                alert(`刷新时间失败: ${error.message}`);
+            }
+        }
+
+        // 格式化时间戳为易读格式
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp * 1000); // JavaScript时间戳是毫秒，所以乘以1000
+            return date.toLocaleString('zh-CN');
+        }
+    </script>
 </body>
 </html>
+
+
+

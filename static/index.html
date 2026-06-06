@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -130,6 +130,16 @@
       return new Date(ts * 1000).toLocaleString("zh-CN");
     }
 
+    function formatElapsed(ts) {
+      if (ts == null) return "";
+      const diff = Math.max(0, Math.floor(Date.now() / 1000) - ts);
+      const days = Math.floor(diff / 86400);
+      const hours = Math.floor((diff % 86400) / 3600);
+      if (days === 0 && hours === 0) return "不到1小时前";
+      if (days === 0) return hours + "小时前";
+      return days + "天" + hours + "小时前";
+    }
+
     function showModal(el)  { el.classList.add("open"); }
     function hideModal(el)  { el.classList.remove("open"); }
 
@@ -170,10 +180,10 @@
         '<div class="item-info">' +
           '<div class="item-name">' + escapeHtml(item.name) + "</div>" +
           '<div class="item-time">' + formatTime(item.last_time) + "</div>" +
+          '<div class="item-elapsed">' + formatElapsed(item.last_time) + "</div>" +
         "</div>" +
         '<div class="item-actions">' +
           '<button class="btn btn-sm btn-outline btn-history">历史</button>' +
-          '<button class="btn btn-sm btn-success btn-refresh">刷新</button>' +
         "</div>";
 
       // 点击卡片主体 → 时间选择器
@@ -186,12 +196,6 @@
       card.querySelector(".btn-history").addEventListener("click", (e) => {
         e.stopPropagation();
         openHistoryModal(item.id, item.name);
-      });
-
-      // 刷新按钮 → 服务器当前时间
-      card.querySelector(".btn-refresh").addEventListener("click", (e) => {
-        e.stopPropagation();
-        quickRefresh(item.id);
       });
 
       $itemsList.appendChild(card);
@@ -217,19 +221,6 @@
         $addForm.querySelector("button").disabled = false;
       }
     });
-
-    /* ================================================================
-     *  快速刷新 —— 不传 time，服务器用当前时间
-     * ================================================================ */
-
-    async function quickRefresh(id) {
-      try {
-        await API.refreshItem(id);
-        await loadItems();
-      } catch (e) {
-        alert(e.message);
-      }
-    }
 
     /* ================================================================
      *  时间选择器 —— 传 {time} 指定发生时间

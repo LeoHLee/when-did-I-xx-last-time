@@ -15,7 +15,7 @@
 
     <form class="add-form" id="addForm">
       <input type="text" id="newItemName" placeholder="输入新事项名称…" autocomplete="off">
-      <input type="datetime-local" id="newItemTime" class="add-time-input">
+      <input type="date" id="newItemTime" class="add-time-input">
       <button type="submit" class="btn btn-primary">添加</button>
     </form>
 
@@ -26,8 +26,8 @@
     <div class="modal-content">
       <h2>记录发生时间</h2>
       <div class="form-group">
-        <label for="timeInput">选择日期和时间</label>
-        <input type="datetime-local" id="timeInput">
+        <label for="timeInput">选择日期</label>
+        <input type="date" id="timeInput">
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger" id="cancelTimeBtn">取消</button>
@@ -128,19 +128,29 @@
      *  工具函数
      * ================================================================ */
 
+    function todayLocalStr() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
     function formatTime(ts) {
       if (ts == null) return "暂无记录";
-      return new Date(ts * 1000).toLocaleString("zh-CN");
+      return new Date(ts * 1000).toLocaleDateString("zh-CN");
     }
 
     function formatElapsed(ts) {
       if (ts == null) return "";
-      const diff = Math.max(0, Math.floor(Date.now() / 1000) - ts);
-      const days = Math.floor(diff / 86400);
-      const hours = Math.floor((diff % 86400) / 3600);
-      if (days === 0 && hours === 0) return "不到1小时前";
-      if (days === 0) return hours + "小时前";
-      return days + "天" + hours + "小时前";
+      const now = new Date();
+      const then = new Date(ts * 1000);
+      // 将两端截断到当天 0 点，计算日期差
+      const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const thenDay = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+      const days = Math.floor((nowDay - thenDay) / 86400000);
+      if (days === 0) return "今天";
+      return days + "天前";
     }
 
     function showModal(el)  { el.classList.add("open"); }
@@ -213,19 +223,19 @@
       const name = $newItemName.value.trim();
       if (!name) return;
 
-      // 读取可选时间
+      // 读取可选日期（date input 值为 YYYY-MM-DD，需按本地时间解析）
       const timeVal = $newItemTime.value;
-      const time = timeVal ? Math.floor(new Date(timeVal).getTime() / 1000) : undefined;
+      let time;
+      if (timeVal) {
+        const [y, m, d] = timeVal.split('-').map(Number);
+        time = Math.floor(new Date(y, m - 1, d).getTime() / 1000);
+      }
 
       $addForm.querySelector("button").disabled = true;
       try {
         await API.addItem(name, time);
         $newItemName.value = "";
-        // 重置为当前本地时间，而非清空
-        const now = new Date();
-        $newItemTime.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16);
+        $newItemTime.value = todayLocalStr();
         await loadItems();
       } catch (err) {
         alert(err.message);
@@ -239,10 +249,7 @@
      * ================================================================ */
 
     function openTimeModal() {
-      const now = new Date();
-      $timeInput.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-        .toISOString()
-        .slice(0, 16);
+      $timeInput.value = todayLocalStr();
       showModal($timeModal);
     }
 
@@ -250,7 +257,8 @@
       const val = $timeInput.value;
       if (!val || !currentItemId) return;
 
-      const timestamp = Math.floor(new Date(val).getTime() / 1000);
+      const [y, m, d] = val.split('-').map(Number);
+      const timestamp = Math.floor(new Date(y, m - 1, d).getTime() / 1000);
       try {
         await API.refreshItem(currentItemId, timestamp);
         hideModal($timeModal);
@@ -352,13 +360,7 @@
      *  启动
      * ================================================================ */
 
-    // 将 newItemTime 默认值设为浏览器本地时间
-    (function setDefaultTime() {
-      const now = new Date();
-      $newItemTime.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-        .toISOString()
-        .slice(0, 16);
-    })();
+    $newItemTime.value = todayLocalStr();
 
     loadItems();
   </script>

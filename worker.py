@@ -65,12 +65,16 @@ class Default(WorkerEntrypoint):
         if not name:
             return json_response({"error": "Missing name"}, status=400)
 
-        now = int(time.time())
+        # 允许用户指定时间，未提供则使用当前时间
+        timestamp = int(time.time())
+        ts = data.get("time")
+        if ts is not None:
+            timestamp = int(ts)
 
         try:
             await self.env.DB.prepare(
                 "INSERT INTO items (name, last_time) VALUES (?, ?)"
-            ).bind(name, now).run()
+            ).bind(name, timestamp).run()
         except Exception:
             return json_response({"error": "Item already exists"}, status=409)
 
@@ -82,9 +86,9 @@ class Default(WorkerEntrypoint):
 
         await self.env.DB.prepare(
             "INSERT INTO item_history (item_id, time) VALUES (?, ?)"
-        ).bind(item_id, now).run()
+        ).bind(item_id, timestamp).run()
 
-        return json_response({"id": item_id, "name": name, "last_time": now}, status=201)
+        return json_response({"id": item_id, "name": name, "last_time": timestamp}, status=201)
 
     async def refresh_item(self, request, item_id):
         # 尝试从请求体中读取可选的时间戳，未提供则使用当前时间

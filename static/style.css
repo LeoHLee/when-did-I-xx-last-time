@@ -66,6 +66,11 @@ body {
   border-color: #667eea;
 }
 
+.add-time-input {
+  max-width: 220px;
+  cursor: pointer;
+}
+
 .btn {
   padding: 12px 20px;
   border: none;

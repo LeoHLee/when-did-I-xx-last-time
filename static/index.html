@@ -15,6 +15,7 @@
 
     <form class="add-form" id="addForm">
       <input type="text" id="newItemName" placeholder="输入新事项名称…" autocomplete="off">
+      <input type="datetime-local" id="newItemTime" class="add-time-input">
       <button type="submit" class="btn btn-primary">添加</button>
     </form>
 
@@ -59,12 +60,13 @@
         return res.json();
       },
 
-      /** POST /api/items */
-      async addItem(name) {
+      /** POST /api/items  可选 {time} */
+      async addItem(name, time) {
+        const body = time !== undefined ? { name, time } : { name };
         const res = await fetch("/api/items", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify(body),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -102,6 +104,7 @@
     const $itemsList      = $("itemsList");
     const $addForm        = $("addForm");
     const $newItemName    = $("newItemName");
+    const $newItemTime    = $("newItemTime");
     const $timeModal      = $("timeModal");
     const $timeInput      = $("timeInput");
     const $confirmTimeBtn = $("confirmTimeBtn");
@@ -210,10 +213,19 @@
       const name = $newItemName.value.trim();
       if (!name) return;
 
+      // 读取可选时间
+      const timeVal = $newItemTime.value;
+      const time = timeVal ? Math.floor(new Date(timeVal).getTime() / 1000) : undefined;
+
       $addForm.querySelector("button").disabled = true;
       try {
-        await API.addItem(name);
+        await API.addItem(name, time);
         $newItemName.value = "";
+        // 重置为当前本地时间，而非清空
+        const now = new Date();
+        $newItemTime.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 16);
         await loadItems();
       } catch (err) {
         alert(err.message);
@@ -339,6 +351,14 @@
     /* ================================================================
      *  启动
      * ================================================================ */
+
+    // 将 newItemTime 默认值设为浏览器本地时间
+    (function setDefaultTime() {
+      const now = new Date();
+      $newItemTime.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+    })();
 
     loadItems();
   </script>

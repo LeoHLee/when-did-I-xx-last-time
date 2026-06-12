@@ -121,6 +121,7 @@
 
     let currentItemId   = null;
     let currentItemName = "";
+    let historyCache    = [];
     let historyPage     = 1;
     const PAGE_SIZE     = 5;
 
@@ -168,6 +169,23 @@
     }
 
     /* ================================================================
+     *  按钮加载动画
+     * ================================================================ */
+
+    function setButtonLoading(btn, loading) {
+      if (loading) {
+        btn.dataset.originalText = btn.innerHTML;
+        btn.classList.add("btn-loading");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="btn-spinner"></span>';
+      } else {
+        btn.classList.remove("btn-loading");
+        btn.disabled = false;
+        btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
+      }
+    }
+
+    /* ================================================================
      *  事项列表
      * ================================================================ */
 
@@ -206,9 +224,15 @@
       });
 
       // 历史按钮
-      card.querySelector(".btn-history").addEventListener("click", (e) => {
+      const historyBtn = card.querySelector(".btn-history");
+      historyBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
-        openHistoryModal(item.id, item.name);
+        setButtonLoading(historyBtn, true);
+        try {
+          await openHistoryModal(item.id, item.name);
+        } finally {
+          setButtonLoading(historyBtn, false);
+        }
       });
 
       $itemsList.appendChild(card);
@@ -231,7 +255,8 @@
         time = Math.floor(new Date(y, m - 1, d).getTime() / 1000);
       }
 
-      $addForm.querySelector("button").disabled = true;
+      const addBtn = $addForm.querySelector("button");
+      setButtonLoading(addBtn, true);
       try {
         await API.addItem(name, time);
         $newItemName.value = "";
@@ -240,7 +265,7 @@
       } catch (err) {
         alert(err.message);
       } finally {
-        $addForm.querySelector("button").disabled = false;
+        setButtonLoading(addBtn, false);
       }
     });
 
@@ -259,6 +284,7 @@
 
       const [y, m, d] = val.split('-').map(Number);
       const timestamp = Math.floor(new Date(y, m - 1, d).getTime() / 1000);
+      setButtonLoading($confirmTimeBtn, true);
       try {
         await API.refreshItem(currentItemId, timestamp);
         hideModal($timeModal);
@@ -266,6 +292,8 @@
         await loadItems();
       } catch (e) {
         alert(e.message);
+      } finally {
+        setButtonLoading($confirmTimeBtn, false);
       }
     });
 
@@ -284,9 +312,9 @@
       historyPage     = 1;
 
       try {
-        const history = await API.getHistory(id);
+        historyCache = await API.getHistory(id);
         $historyTitle.textContent = escapeHtml(name) + " · 历史记录";
-        renderHistoryPage(history, historyPage);
+        renderHistoryPage(historyCache, historyPage);
         showModal($historyModal);
       } catch (e) {
         alert(e.message);
@@ -341,14 +369,9 @@
       return btn;
     }
 
-    async function goPage(page) {
+    function goPage(page) {
       historyPage = page;
-      try {
-        const history = await API.getHistory(currentItemId);
-        renderHistoryPage(history, historyPage);
-      } catch (e) {
-        alert(e.message);
-      }
+      renderHistoryPage(historyCache, historyPage);
     }
 
     $closeHistoryBtn.addEventListener("click", () => hideModal($historyModal));
